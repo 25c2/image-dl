@@ -3,8 +3,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const addSizeBtn = document.getElementById("add-size");
   const saveBtn = document.getElementById("save");
   const logList = document.getElementById("log-list");
+  const downloadLogList = document.getElementById("download-log-list");
 
-  // ログを追加する関数
+  // ログを追加する関数（設定操作ログ用）
   function addLog(msg) {
     const li = document.createElement("li");
     li.textContent = msg;
@@ -64,4 +65,24 @@ document.addEventListener("DOMContentLoaded", () => {
       addLog(`✅ ${sizes.length}件のサイズを保存しました`);
     });
   };
+
+  // ダウンロード履歴を取得して表示する関数
+  function refreshDownloadLog() {
+    chrome.runtime.sendMessage({ action: "getDownloadLog" }, (log) => {
+      downloadLogList.innerHTML = "";
+      if (!log || log.length === 0) {
+        downloadLogList.textContent = "ダウンロード履歴はありません";
+        return;
+      }
+
+      log.forEach(({ url, fileName, time }) => {
+        const li = document.createElement("li");
+        li.textContent = `[${time}] ${fileName} — ${url}`;
+        downloadLogList.appendChild(li);
+      });
+    });
+  }
+
+  // ページ読み込み時に履歴を表示
+  refreshDownloadLog();
 });
