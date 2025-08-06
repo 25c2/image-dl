@@ -1,2 +1,3 @@
 # chrome-image-downloader
 chromeでサイズ指定した画像を自動でダウンロードするやつ
+ChatGPT製です
