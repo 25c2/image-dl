@@ -1,15 +1,15 @@
 console.log("✅ content.js is running!");
 
-function isTargetSize(img, targetWidth, targetHeight) {
-  return img.naturalWidth === targetWidth && img.naturalHeight === targetHeight;
+function isTargetSize(img, sizes) {
+  return sizes.some(({width, height}) => img.naturalWidth === width && img.naturalHeight === height);
 }
 
-function checkImages(targetWidth, targetHeight) {
+function checkImages(sizes) {
   const images = document.querySelectorAll("img");
 
   images.forEach(img => {
     const tryDownload = () => {
-      if (isTargetSize(img, targetWidth, targetHeight)) {
+      if (isTargetSize(img, sizes)) {
         console.log(`▶ ダウンロード対象（サイズ一致）: ${img.src} (${img.naturalWidth}x${img.naturalHeight})`);
         chrome.runtime.sendMessage({ action: "downloadImage", url: img.src });
       } else {
@@ -26,12 +26,11 @@ function checkImages(targetWidth, targetHeight) {
 }
 
 function init() {
-  chrome.storage.sync.get(["width", "height"], (settings) => {
-    const targetWidth = parseInt(settings.width) || 300;
-    const targetHeight = parseInt(settings.height) || 300;
+  chrome.storage.sync.get(["sizes"], (data) => {
+    const sizes = data.sizes && data.sizes.length ? data.sizes : [{width:300, height:300}];
 
     window.addEventListener("load", () => {
-      checkImages(targetWidth, targetHeight);
+      checkImages(sizes);
     });
   });
 }

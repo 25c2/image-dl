@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-  <title>画像サイズ設定</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>画像ダウンローダー設定</title>
 </head>
 <body>
   <h1>画像ダウンローダー設定</h1>
 
-  <label>幅: <input type="number" id="width" min="1" /></label><br>
-  <label>高さ: <input type="number" id="height" min="1" /></label><br>
+  <div id="sizes-list"></div>
+
+  <button id="add-size">サイズを追加</button>
   <button id="save">保存</button>
 
   <h2>保存ログ</h2>
-  <ul id="log-list"></ul>
+  <ul id="log-list" style="color: green;"></ul>
 
   <script src="options.js"></script>
 </body>
