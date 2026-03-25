@@ -1,5 +1,3 @@
-console.log("✅ content.js is running!");
-
 function isTargetSize(img, sizes) {
   return sizes.some(({width, height}) => img.naturalWidth === width && img.naturalHeight === height);
 }

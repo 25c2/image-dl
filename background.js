@@ -1,5 +1,3 @@
-console.log("✅ background.js is running!");
-
 // 重複チェックセット
 const downloadedFiles = new Set();
 
