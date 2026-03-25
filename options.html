@@ -2,22 +2,93 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>画像サイズ設定</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image Auto Downloader</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <h1>画像ダウンローダー設定</h1>
+<body class="app-shell">
+  <main class="page">
+    <section class="hero card">
+      <div>
+        <p class="eyebrow">Image Auto Downloader</p>
+        <h1>画像ダウンローダー設定</h1>
+        <p class="lede">サイズ条件を整えて、拡張の動作状態と履歴をまとめて管理します。</p>
+      </div>
+      <div class="hero-status">
+        <span id="status-badge" class="badge">読み込み中</span>
+        <p id="status-summary" class="muted">状態を確認しています...</p>
+      </div>
+    </section>
 
-  <div id="sizes-list"></div>
+    <section class="layout">
+      <div class="stack">
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Settings</p>
+              <h2>監視ルール</h2>
+            </div>
+            <label class="toggle">
+              <input id="enabled-toggle" type="checkbox" />
+              <span>自動ダウンロードを有効化</span>
+            </label>
+          </div>
 
-  <button id="add-size">サイズを追加</button>
-  <button id="save">保存</button>
+          <div class="preset-row">
+            <span class="muted">よく使うサイズ</span>
+            <div id="preset-buttons" class="chip-row"></div>
+          </div>
 
-  <h2>設定ログ</h2>
-  <ul id="log-list"></ul>
+          <div id="sizes-list" class="size-list"></div>
 
-  <h2>ダウンロード履歴</h2>
-  <ul id="download-log-list"></ul>
+          <div class="button-row">
+            <button id="add-size" class="secondary" type="button">サイズを追加</button>
+            <button id="restore-defaults" class="ghost" type="button">初期値に戻す</button>
+            <button id="save" type="button">保存</button>
+          </div>
+          <p id="save-feedback" class="feedback muted">まだ保存してないなら、ちゃんと押しなさいよね。</p>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Activity</p>
+              <h2>設定ログ</h2>
+            </div>
+          </div>
+          <ul id="log-list" class="log-list"></ul>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">History</p>
+            <h2>ダウンロード履歴</h2>
+          </div>
+          <button id="clear-history" class="ghost" type="button">履歴をクリア</button>
+        </div>
+
+        <div id="history-summary" class="summary-grid"></div>
+        <ul id="download-log-list" class="history-list"></ul>
+      </section>
+    </section>
+  </main>
+
+  <template id="size-row-template">
+    <div class="size-row">
+      <label>
+        <span>幅</span>
+        <input type="number" class="width" min="1" placeholder="300" />
+      </label>
+      <span class="times">×</span>
+      <label>
+        <span>高さ</span>
+        <input type="number" class="height" min="1" placeholder="300" />
+      </label>
+      <button class="ghost remove" type="button">削除</button>
+    </div>
+  </template>
 
   <script src="options.js"></script>
 </body>

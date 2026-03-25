@@ -1,36 +1,167 @@
-function isTargetSize(img, sizes) {
-  return sizes.some(({width, height}) => img.naturalWidth === width && img.naturalHeight === height);
+const DEFAULT_SIZES = [
+  { width: 300, height: 300 }
+];
+const boundImages = new WeakSet();
+const processedSignatures = new Set();
+let settings = {
+  enabled: true,
+  sizes: DEFAULT_SIZES
+};
+
+function normalizeSizes(sizes) {
+  if (!Array.isArray(sizes) || sizes.length === 0) {
+    return DEFAULT_SIZES;
+  }
+
+  const normalized = sizes
+    .map((size) => ({
+      width: Number.parseInt(size.width, 10),
+      height: Number.parseInt(size.height, 10)
+    }))
+    .filter((size) => size.width > 0 && size.height > 0);
+
+  return normalized.length > 0 ? normalized : DEFAULT_SIZES;
 }
 
-function checkImages(sizes) {
-  const images = document.querySelectorAll("img");
-
-  images.forEach(img => {
-    const tryDownload = () => {
-      if (isTargetSize(img, sizes)) {
-        console.log(`▶ ダウンロード対象（サイズ一致）: ${img.src} (${img.naturalWidth}x${img.naturalHeight})`);
-        chrome.runtime.sendMessage({ action: "downloadImage", url: img.src });
-      } else {
-        console.log(`▶ サイズ不一致のためスキップ: ${img.src} (${img.naturalWidth}x${img.naturalHeight})`);
-      }
-    };
-
-    if (img.complete && img.naturalWidth !== 0) {
-      tryDownload();
-    } else {
-      img.onload = tryDownload;
-    }
+function isTargetSize(img) {
+  return settings.sizes.some(({ width, height }) => {
+    return img.naturalWidth === width && img.naturalHeight === height;
   });
 }
 
-function init() {
-  chrome.storage.sync.get(["sizes"], (data) => {
-    const sizes = data.sizes && data.sizes.length ? data.sizes : [{width:300, height:300}];
+function getImageUrl(img) {
+  return img.currentSrc || img.src || "";
+}
 
-    window.addEventListener("load", () => {
-      checkImages(sizes);
+function inspectImage(img) {
+  if (!settings.enabled || !img.isConnected) {
+    return;
+  }
+
+  const url = getImageUrl(img);
+  if (!url || url.startsWith("data:")) {
+    return;
+  }
+
+  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+    return;
+  }
+
+  const signature = `${url}|${img.naturalWidth}x${img.naturalHeight}`;
+  if (processedSignatures.has(signature) || !isTargetSize(img)) {
+    return;
+  }
+
+  processedSignatures.add(signature);
+
+  chrome.runtime.sendMessage({
+    action: "downloadImage",
+    url,
+    width: img.naturalWidth,
+    height: img.naturalHeight,
+    pageUrl: location.href
+  });
+}
+
+function ensureImageBinding(img) {
+  if (!(img instanceof HTMLImageElement) || boundImages.has(img)) {
+    return;
+  }
+
+  boundImages.add(img);
+  img.addEventListener("load", () => {
+    inspectImage(img);
+  });
+}
+
+function inspectExistingImages() {
+  const images = document.querySelectorAll("img");
+  images.forEach((img) => {
+    ensureImageBinding(img);
+    inspectImage(img);
+  });
+  return images.length;
+}
+
+function observeImages() {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof HTMLImageElement) {
+          ensureImageBinding(node);
+          inspectImage(node);
+        }
+
+        if (node instanceof Element) {
+          node.querySelectorAll("img").forEach((img) => {
+            ensureImageBinding(img);
+            inspectImage(img);
+          });
+        }
+      });
+
+      if (
+        mutation.type === "attributes" &&
+        mutation.target instanceof HTMLImageElement &&
+        mutation.attributeName === "src"
+      ) {
+        inspectImage(mutation.target);
+      }
+    });
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["src"]
+  });
+}
+
+function loadSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(["enabled", "sizes"], (data) => {
+      settings = {
+        enabled: typeof data.enabled === "boolean" ? data.enabled : true,
+        sizes: normalizeSizes(data.sizes)
+      };
+
+      resolve(settings);
     });
   });
 }
 
-init();
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync") {
+    return;
+  }
+
+  if (changes.enabled) {
+    settings.enabled = changes.enabled.newValue !== false;
+  }
+
+  if (changes.sizes) {
+    settings.sizes = normalizeSizes(changes.sizes.newValue);
+  }
+
+  if (settings.enabled) {
+    inspectExistingImages();
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action !== "rescan") {
+    return false;
+  }
+
+  sendResponse({ ok: true, inspectedCount: inspectExistingImages() });
+  return true;
+});
+
+async function init() {
+  await loadSettings();
+  inspectExistingImages();
+  observeImages();
+}
+
+void init();
