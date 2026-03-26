@@ -3,6 +3,7 @@ const DEFAULT_SIZES = [
 ];
 const boundImages = new WeakSet();
 const processedSignatures = new Set();
+const pendingSignatures = new Set();
 let settings = {
   enabled: true,
   sizes: DEFAULT_SIZES
@@ -33,7 +34,20 @@ function getImageUrl(img) {
   return img.currentSrc || img.src || "";
 }
 
-function inspectImage(img) {
+function sendRuntimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+async function inspectImage(img) {
   if (!settings.enabled || !img.isConnected) {
     return;
   }
@@ -48,19 +62,28 @@ function inspectImage(img) {
   }
 
   const signature = `${url}|${img.naturalWidth}x${img.naturalHeight}`;
-  if (processedSignatures.has(signature) || !isTargetSize(img)) {
+  if (processedSignatures.has(signature) || pendingSignatures.has(signature) || !isTargetSize(img)) {
     return;
   }
 
-  processedSignatures.add(signature);
+  pendingSignatures.add(signature);
 
-  chrome.runtime.sendMessage({
-    action: "downloadImage",
-    url,
-    width: img.naturalWidth,
-    height: img.naturalHeight,
-    pageUrl: location.href
-  });
+  try {
+    const response = await sendRuntimeMessage({
+      action: "downloadImage",
+      url,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      pageUrl: location.href
+    });
+
+    if (response?.ok || response?.reason === "duplicate") {
+      processedSignatures.add(signature);
+    }
+  } catch (_error) {
+  } finally {
+    pendingSignatures.delete(signature);
+  }
 }
 
 function ensureImageBinding(img) {
@@ -70,7 +93,7 @@ function ensureImageBinding(img) {
 
   boundImages.add(img);
   img.addEventListener("load", () => {
-    inspectImage(img);
+    void inspectImage(img);
   });
 }
 
@@ -78,7 +101,7 @@ function inspectExistingImages() {
   const images = document.querySelectorAll("img");
   images.forEach((img) => {
     ensureImageBinding(img);
-    inspectImage(img);
+    void inspectImage(img);
   });
   return images.length;
 }
@@ -89,13 +112,13 @@ function observeImages() {
       mutation.addedNodes.forEach((node) => {
         if (node instanceof HTMLImageElement) {
           ensureImageBinding(node);
-          inspectImage(node);
+          void inspectImage(node);
         }
 
         if (node instanceof Element) {
           node.querySelectorAll("img").forEach((img) => {
             ensureImageBinding(img);
-            inspectImage(img);
+            void inspectImage(img);
           });
         }
       });
@@ -105,7 +128,7 @@ function observeImages() {
         mutation.target instanceof HTMLImageElement &&
         mutation.attributeName === "src"
       ) {
-        inspectImage(mutation.target);
+        void inspectImage(mutation.target);
       }
     });
   });

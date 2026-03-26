@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await chrome.runtime.sendMessage({ action: "clearDownloadLog" });
     await refreshDownloadLog();
     await refreshStatus();
-    addLog("ダウンロード履歴を消したわ。", "warning");
+    addLog("表示中のダウンロード履歴だけ消したわ。保存済み判定はそのまま。", "warning");
   });
 
   enabledToggle.addEventListener("change", () => {
